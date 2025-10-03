@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Razka Bintang Firdaus</title>
+    <title>Laman Pribadi | Razkabf Vibe</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Konfigurasi Kustom Tailwind CSS (untuk warna, font, dan animasi)
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        // Warna sesuai permintaan: Pink Vibrant dan Lilac Soft
                         'primary-pink': '#F7668F',   // Pink yang Cerah
                         'secondary-lilac': '#C4B5FD', // Ungu Lilac yang Lembut
                         'bg-dark': '#111827',        // Background Dark Mode
@@ -29,7 +30,6 @@
                     },
                     animation: {
                         glitch: 'glitch 0.5s ease-in-out infinite',
-                        // Animasi pulse dibuat menggunakan warna pink
                         'pulse-custom': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     }
                 }
@@ -37,7 +37,7 @@
         }
     </script>
     <style>
-        /* Custom styling untuk Marquee */
+        /* Custom CSS Murni (Marquee, Glow, Spin) */
         .marquee {
             white-space: nowrap;
             overflow: hidden;
@@ -52,7 +52,7 @@
         .btn-link:hover {
             box-shadow: 0 0 15px rgba(196, 181, 253, 0.6); /* Lilac glow */
         }
-        /* Rotasi lambat untuk bintang */
+        /* Rotasi lambat untuk bintang di Current Vibe */
         .animate-spin-slow {
             animation: spin 8s linear infinite;
         }
@@ -60,7 +60,7 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        /* Neon Glow Kuat untuk Header (Korak 2) */
+        /* Neon Glow Kuat untuk Header RBF */
         .text-neon-pink-strong {
             text-shadow: 0 0 8px #F7668F, 0 0 15px #F7668F, 0 0 25px #F7668F;
         }
@@ -69,42 +69,80 @@
 
 <body class="bg-bg-dark text-gray-100 min-h-screen p-4 flex flex-col items-center font-sans">
 
+    <!-- TOAST MESSAGE CONTAINER (Hidden by default) - Bagian dari JS/UI Interaktif -->
+    <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 opacity-0 transform scale-90 pointer-events-none">
+        <div id="toast-message" class="bg-card-dark text-gray-100 p-3 rounded-xl shadow-2xl border border-secondary-lilac/70">
+            <!-- Pesan akan di-inject di sini -->
+        </div>
+    </div>
+    <!-- END TOAST -->
+
+    <!-- AUDIO FOR CLICK SOUND EFFECT -->
+    <audio id="click-sound" src="https://assets.mixkit.co/sfx/download/mixkit-sci-fi-click-button-1419.wav" preload="auto"></audio>
+
     <div class="w-full max-w-md mx-auto">
 
-        <header class="text-center my-8">
+        <!-- HEADER DAN AVATAR -->
+        <div class="text-center my-8">
+            <img src="uploaded:1000053059.jpg-52cba596-4876-4000-8f08-edda7f49b1ac"
+                 alt="Foto Profil Razkabf"
+                 class="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-secondary-lilac shadow-lg shadow-primary-pink/50 transition duration-500 hover:scale-105"
+            >
             <h1 class="text-6xl font-extrabold text-primary-pink leading-tight tracking-tighter animate-pulse-custom text-neon-pink-strong">
                 RBF
             </h1>
             <p class="text-sm text-gray-400 mt-1">Razka Bintang Firdaus | 05' | ENFP</p>
-        </header>
+        </div>
         
+        <!-- TITLE / STATUS -->
         <div class="text-center mb-6">
             <h2 class="text-2xl font-semibold text-secondary-lilac p-2 rounded-xl bg-card-dark/50 border border-secondary-lilac/50">
                 <span class="inline-block animate-glitch">🤖</span> <span class="text-primary-pink drop-shadow-lg shadow-primary-pink">AI Addict</span>
             </h2>
         </div>
 
+        <!-- MARQUEE TEXT -->
         <div class="bg-secondary-lilac text-bg-dark p-2 overflow-hidden rounded-lg mb-6 shadow-xl">
             <div class="marquee font-semibold text-sm">
                 Halo, Razka di sini / 안녕하세요, 저는 라즈카입니다 
             </div>
         </div>
 
-        <div class="bg-card-dark p-6 rounded-2xl shadow-2xl mb-8 border-2 border-primary-pink">
-            <h2 class="text-2xl font-bold mb-2 flex items-center text-secondary-lilac">
-                <svg class="w-6 h-6 mr-2 animate-spin-slow" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <!-- BLOK CURRENT VIBE (BADGE INTERAKTIF) -->
+        <div class="bg-card-dark p-4 rounded-2xl shadow-2xl mb-8 border-2 border-primary-pink">
+            <h2 class="text-xl font-bold mb-3 flex items-center text-secondary-lilac">
+                <svg class="w-5 h-5 mr-2 animate-spin-slow" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 2l2.6 5.2 5.6.8-4 3.9.9 5.5-5.1-2.7-5.1 2.7.9-5.5-4-3.9 5.6-.8L12 2z" />
                 </svg>
                 Current Vibe
             </h2>
-            <div class="text-lg text-gray-300 space-y-2">
-                <span class="block">🩷🎤 **K-Pop Stan:** <span class="text-primary-pink font-semibold">TWICE</span>, <span class="text-primary-pink font-semibold">AESPA</span>, <span class="text-primary-pink font-semibold">HEARTS2HEARTS</span>, & <span class="text-primary-pink font-semibold">LE SSERAFIM</span>. Lagi *streaming* terus!</span>
-                <span class="block">9️⃣3️⃣ **MotoGP Fanboy:** Selalu dukung <span class="text-secondary-lilac font-semibold">Marc Marquez</span>. *Gas pol!*</span>
-                <span class="block">👑 **Football Addict:** <span class="text-white font-semibold">Timnas Indonesia 🇮🇩</span> dan *all-time favorite* <span class="text-secondary-lilac font-semibold">Real Madrid</span>. *Hala Madrid!*</span>
-                <span class="block mt-4 text-sm text-gray-400">Mau bahas *comeback* atau *race* terbaru? Langsung *connect* di bawah ya!</span>
-            </div>
-        </div>
+            <div class="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
+                
+                <!-- Badge 1: K-Pop (Clickable) -->
+                <div class="p-2 rounded-lg bg-primary-pink text-bg-dark shadow-md cursor-pointer hover:scale-[1.05] transition transform badge-vibe" 
+                     onclick="showVibeDetail('K-Pop Squad', 'TWICE, AESPA, HEARTS2HEARTS, LE SSERAFIM. Lagi streaming terus! 🎧')">
+                    🩷 K-POP STAN
+                </div>
 
+                <!-- Badge 2: MotoGP (Clickable) -->
+                <div class="p-2 rounded-lg bg-secondary-lilac text-bg-dark shadow-md cursor-pointer hover:scale-[1.05] transition transform badge-vibe"
+                     onclick="showVibeDetail('Rider Favorit', 'Selalu dukung Marc Marquez (MM93). Gas pol! 🏍️💨')">
+                    🏍️ MOTOGP (MM93)
+                </div>
+
+                <!-- Badge 3: Football (Clickable) -->
+                <div class="p-2 rounded-lg bg-gray-600 text-white shadow-md cursor-pointer hover:scale-[1.05] transition transform badge-vibe"
+                     onclick="showVibeDetail('Team Bola', 'Timnas Indonesia 🇮🇩 & Real Madrid. Hala Madrid! 👑')">
+                    ⚽ MADRID / INDO
+                </div>
+            </div>
+            <p class="mt-4 text-center text-sm text-gray-400">
+                Klik badge di atas untuk lihat detailnya ya!
+            </p>
+        </div>
+        <!-- AKHIR BLOK CURRENT VIBE -->
+
+        <!-- SECTION LINKS UTAMA -->
         <section class="space-y-4">
             
             <a href="https://www.tiktok.com/@hiraiyizhuo?_r=1&_d=ej1hlhm8d7j6b3&sec_uid=MS4wLjABAAAAQ0Gxo4tD37GbCYl744yHdkFnpXZCOBdXJIkkvI0ot2P6Fs0uwaj25eLhmtU0ZGy8&share_author_id=6819986461502505986&sharer_language=id&source=h5_t&u_code=dc4hceid3jhhkl&timestamp=1759464666&user_id=6819986461502505986&sec_user_id=MS4wLjABAAAAQ0Gxo4tD37GbCYl744yHdkFnpXZCOBdXJIkkvI0ot2P6Fs0uwaj25eLhmtU0ZGy8&item_author_type=1&utm_source=copy&utm_campaign=client_share&utm_medium=android&share_iid=7556592524171003666&share_link_id=242be62f-87b3-406d-9bf8-440cda2eb5f5&share_app_id=1180&ugbiz_name=ACCOUNT&ug_btm=b8727%2Cb7360&social_share_type=5&enable_checksum=1"
@@ -135,10 +173,54 @@
 
         </section>
         
+        <!-- FOOTER -->
         <footer class="text-center mt-10 text-gray-500 text-xs">
             <p>&copy; 2024 Razkabf Vibe. Powered by Gemini.</p>
         </footer>
 
     </div>
+
+    <!-- JAVASCRIPT LOGIC (Toast and Sound Effects) -->
+    <script>
+        /**
+         * FUNCTION UNTUK MENAMPILKAN TOAST/MESSAGE BOX KETIKA BADGE VIBE DIKLIK.
+         * @param {string} title - Judul pesan toast.
+         * @param {string} message - Isi detail pesan toast.
+         */
+        function showVibeDetail(title, message) {
+            const toastContainer = document.getElementById('toast-container');
+            const toastMessage = document.getElementById('toast-message');
+            const sound = document.getElementById('click-sound');
+            
+            // 1. Putar sound effect
+            sound.currentTime = 0; 
+            sound.play().catch(e => console.log("Audio play prevented:", e));
+
+            // 2. Format pesan
+            toastMessage.innerHTML = `<p class="text-primary-pink font-bold">${title}</p><p class="mt-1 text-sm">${message}</p>`;
+
+            // 3. Tampilkan Toast (ubah opacity dan scale)
+            toastContainer.classList.remove('opacity-0', 'scale-90', 'pointer-events-none');
+            toastContainer.classList.add('opacity-100', 'scale-100');
+
+            // 4. Sembunyikan Toast setelah 4 detik
+            setTimeout(() => {
+                toastContainer.classList.remove('opacity-100', 'scale-100');
+                toastContainer.classList.add('opacity-0', 'scale-90', 'pointer-events-none');
+            }, 4000);
+        }
+
+        /**
+         * Memicu sound effect saat tombol link utama diklik.
+         */
+        document.querySelectorAll('.btn-link').forEach(button => {
+            button.addEventListener('click', function() {
+                const sound = document.getElementById('click-sound');
+                sound.currentTime = 0; // Memastikan audio dimulai dari awal
+                sound.play().catch(e => console.log("Audio play prevented:", e));
+            });
+        });
+    </script>
 </body>
 </html>
+
