@@ -1,223 +1,617 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Razka Bintang Firdaus</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Konfigurasi Kustom Tailwind CSS (untuk warna, font, dan animasi)
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'primary-pink': '#F7668F',   // Pink yang Cerah
-                        'secondary-lilac': '#C4B5FD', // Ungu Lilac yang Lembut
-                        'bg-dark': '#111827',        // Background Dark Mode
-                        'card-dark': '#1f2937',      // Card Dark Mode
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    keyframes: {
-                        glitch: {
-                            '0%, 100%': { transform: 'translate(0, 0)' },
-                            '25%': { transform: 'translate(-2px, 2px)' },
-                            '50%': { transform: 'translate(4px, -4px)' },
-                            '75%': { transform: 'translate(-2px, 4px)' },
-                        }
-                    },
-                    animation: {
-                        glitch: 'glitch 0.5s ease-in-out infinite',
-                        'pulse-custom': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                }
-            }
+import React, { useState, useEffect, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
+
+// --- KONSTANTA & FIREBASE SETUP ---
+
+// Akses global variable yang disediakan lingkungan Canvas
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+// Konfigurasi Default untuk Profil
+const defaultProfile = {
+    name: 'Razka Bintang Firdaus',
+    bio: 'AI Addict | 05\' | ENFP',
+    // GANTI URL INI DENGAN URL FOTO PROFIL KAMU YANG PERTAMA
+    profilePicUrl: 'https://placehold.co/150x150/F7668F/111827?text=FOTO+PROFIL+KAMU', 
+    spotifyUrl: 'https://open.spotify.com/track/54mnwt3kO0uYsy0ceg14JP?si=WlJNWu66RE2H9dIctnOnfw',
+    vibes: {
+        kpop: 'TWICE, aespa, Hearts2Hearts, LE SSERAFIM',
+        motogp: 'Marc Marquez (MM93)',
+        football: 'Timnas Indonesia 🇮🇩 & Real Madrid 👑'
+    }
+};
+
+// --- UTILITY FUNCTONS ---
+
+/**
+ * Fungsi utilitas untuk mengekstrak ID lagu Spotify dari URL track.
+ * @param {string} url - URL Spotify track penuh.
+ * @returns {string} ID track Spotify.
+ */
+const getSpotifyTrackId = (url) => {
+    try {
+        if (!url) return '';
+        const urlObj = new URL(url);
+        const pathSegments = urlObj.pathname.split('/');
+        // Mencari segmen 'track' dan mengambil ID setelahnya
+        const trackIndex = pathSegments.indexOf('track');
+        if (trackIndex !== -1 && pathSegments.length > trackIndex + 1) {
+            return pathSegments[trackIndex + 1].split('?')[0]; // Ambil ID, hilangkan query params
         }
-    </script>
+        return '';
+    } catch (error) {
+        return '';
+    }
+};
+
+// --- KOMPONEN: STYLING GLOBAL ---
+const StyleOverrides = () => (
     <style>
-        /* Custom CSS Murni (Marquee, Glow, Spin) */
-        .marquee {
-            white-space: nowrap;
-            overflow: hidden;
-            display: inline-block;
-            animation: marquee 10s linear infinite;
+        {`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        /* Define custom colors */
+        .bg-dark { background-color: #111827; }
+        .bg-card-dark { background-color: #1f2937; }
+        .text-primary-pink { color: #F7668F; }
+        .border-primary-pink { border-color: #F7668F; }
+        .hover\:bg-primary-pink:hover { background-color: #F7668F; }
+        
+        .text-secondary-lilac { color: #C084FC; }
+        .border-secondary-lilac { border-color: #C084FC; }
+        .hover\:bg-secondary-lilac:hover { background-color: #C084FC; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Lebih gelap dari bg-dark */
+            color: #e5e7eb;
         }
-        @keyframes marquee {
-            0% { transform: translate(100%, 0); }
-            100% { transform: translate(-100%, 0); }
+
+        /* Override button text color when hover is applied */
+        .hover\\:text-bg-dark:hover { color: #111827; }
+
+        /* Custom scrollbar for vibes */
+        .vibe-scroll::-webkit-scrollbar {
+            width: 4px;
         }
-        /* Custom glow effect untuk link menggunakan warna Lilac */
-        .btn-link:hover {
-            box-shadow: 0 0 15px rgba(196, 181, 253, 0.6); /* Lilac glow */
+        .vibe-scroll::-webkit-scrollbar-thumb {
+            background-color: #F7668F;
+            border-radius: 2px;
         }
-        /* Rotasi lambat untuk bintang di Current Vibe */
-        .animate-spin-slow {
-            animation: spin 8s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        /* Neon Glow Kuat untuk Header RBF */
-        .text-neon-pink-strong {
-            text-shadow: 0 0 8px #F7668F, 0 0 15px #F7668F, 0 0 25px #F7668F;
-        }
+        `}
     </style>
-</head>
+);
 
-<body class="bg-bg-dark text-gray-100 min-h-screen p-4 flex flex-col items-center font-sans">
-
-    <!-- TOAST MESSAGE CONTAINER (Hidden by default) - Bagian dari JS/UI Interaktif -->
-    <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 opacity-0 transform scale-90 pointer-events-none">
-        <div id="toast-message" class="bg-card-dark text-gray-100 p-3 rounded-xl shadow-2xl border border-secondary-lilac/70">
-            <!-- Pesan akan di-inject di sini -->
+// --- KOMPONEN: VIBE ITEM ---
+const VibeItem = ({ emoji, title, content, color, onClick }) => (
+    <div 
+        onClick={onClick}
+        className={`p-4 rounded-xl mb-3 border-l-4 border-${color} bg-gray-800/50 shadow-md cursor-pointer transition transform hover:bg-gray-700/50 hover:shadow-xl`}
+    >
+        <div className={`text-lg font-bold flex items-center text-${color}`}>
+            <span className="text-2xl mr-3">{emoji}</span>
+            {title}
         </div>
+        <p className="text-sm text-gray-300 mt-1 pl-8 line-clamp-2 vibe-scroll overflow-hidden">{content}</p>
     </div>
-    <!-- END TOAST -->
+);
 
-    <!-- AUDIO FOR CLICK SOUND EFFECT -->
-    <audio id="click-sound" src="https://assets.mixkit.co/sfx/download/mixkit-sci-fi-click-button-1419.wav" preload="auto"></audio>
 
-    <div class="w-full max-w-md mx-auto">
+// --- KOMPONEN: TOMBOL UTAMA ---
 
-        <!-- HEADER DAN AVATAR -->
-        <div class="text-center my-8">
-    
-            <h1 class="text-6xl font-extrabold text-primary-pink leading-tight tracking-tighter animate-pulse-custom text-neon-pink-strong">
-                RBF
-            </h1>
-            <p class="text-sm text-gray-400 mt-1">Razka Bintang Firdaus | 05' | ENFP</p>
-        </div>
-        
-        <!-- TITLE / STATUS -->
-        <div class="text-center mb-6">
-            <h2 class="text-2xl font-semibold text-secondary-lilac p-2 rounded-xl bg-card-dark/50 border border-secondary-lilac/50">
-                <span class="inline-block animate-glitch">🤖</span> <span class="text-primary-pink drop-shadow-lg shadow-primary-pink">AI Addict</span>
-            </h2>
-        </div>
+const PrimaryButton = ({ children, onClick, colorClass, hoverClass, icon }) => (
+    <button
+        onClick={onClick}
+        className={`w-full flex items-center p-4 rounded-xl text-left font-bold text-lg transition duration-300 transform hover:scale-[1.02] 
+                    bg-card-dark border-2 ${colorClass} ${hoverClass} shadow-xl`}
+    >
+        {/* Kontrol ukuran ikon di sini: w-6 h-6 = 24x24px */}
+        {icon && React.cloneElement(icon, { className: 'w-6 h-6 inline-block mr-4 flex-shrink-0' })} 
+        <span className="truncate">{children}</span>
+    </button>
+);
 
-        <!-- MARQUEE TEXT -->
-        <div class="bg-secondary-lilac text-bg-dark p-2 overflow-hidden rounded-lg mb-6 shadow-xl">
-            <div class="marquee font-semibold text-sm">
-                Halo, Razka di sini / 안녕하세요, 저는 라즈카입니다 
-            </div>
-        </div>
 
-        <!-- BLOK CURRENT VIBE (BADGE INTERAKTIF) -->
-        <div class="bg-card-dark p-4 rounded-2xl shadow-2xl mb-8 border-2 border-primary-pink">
-            <h2 class="text-xl font-bold mb-3 flex items-center text-secondary-lilac">
-                <svg class="w-5 h-5 mr-2 animate-spin-slow" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2l2.6 5.2 5.6.8-4 3.9.9 5.5-5.1-2.7-5.1 2.7.9-5.5-4-3.9 5.6-.8L12 2z" />
-                </svg>
-                Current Vibe
-            </h2>
-            <div class="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
+// --- KOMPONEN: MODAL GALERI IDOLA (6 FOTO) ---
+
+const IdolModal = ({ onClose }) => {
+    // ⬇️ GANTI URL INI DENGAN URL 6 FOTO IDOLA KAMU ⬇️
+    const idolImages = [
+        'https://placehold.co/180x250/F7668F/111827?text=IDOL+1', // Ganti URL ini
+        'https://placehold.co/180x250/C084FC/111827?text=IDOL+2', // Ganti URL ini
+        'https://placehold.co/180x250/34d399/111827?text=IDOL+3', // Ganti URL ini
+        'https://placehold.co/180x250/38bdf8/111827?text=IDOL+4', // Ganti URL ini
+        'https://placehold.co/180x250/f97316/111827?text=IDOL+5', // Ganti URL ini
+        'https://placehold.co/180x250/a855f7/111827?text=IDOL+6'  // Ganti URL ini
+    ];
+
+    return (
+        <div 
+            className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+            onClick={onClose} 
+        >
+            <div 
+                className="bg-card-dark rounded-2xl w-full max-w-lg p-6 shadow-2xl border-2 border-secondary-lilac/80 max-h-[90vh] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()} 
+            >
+                <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-3">
+                    <h2 className="text-2xl font-bold text-primary-pink">Galeri Foto Idola (6 Foto) 📸</h2>
+                    <button 
+                        onClick={onClose} 
+                        className="text-gray-400 hover:text-white transition p-1 rounded-full bg-gray-700"
+                        aria-label="Tutup Galeri"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
                 
-                <!-- Badge 1: K-Pop (Clickable) -->
-                <div class="p-2 rounded-lg bg-primary-pink text-bg-dark shadow-md cursor-pointer hover:scale-[1.05] transition transform badge-vibe" 
-                     onclick="showVibeDetail('K-Pop Squad', 'TWICE, AESPA, HEARTS2HEARTS, LE SSERAFIM. Lagi streaming terus! 🎧')">
-                    🩷 K-POP
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto pr-1 -mr-1 vibe-scroll">
+                    {idolImages.map((src, index) => (
+                        <img 
+                            key={index}
+                            src={src} 
+                            alt={`Idol ${index + 1}`} 
+                            className="w-full h-auto rounded-xl object-cover border-2 border-primary-pink/50 shadow-lg transform transition duration-300 hover:scale-[1.05]"
+                            style={{ aspectRatio: '3/4' }}
+                            // Fallback jika URL gagal dimuat
+                            onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/180x250/334155/e2e8f0?text=IDOL'; }}
+                        />
+                    ))}
                 </div>
+                <p className="text-center text-xs text-gray-500 mt-4 italic">
+                    *Tampilan ini terpisah dari foto profil utama Anda.
+                </p>
+            </div>
+        </div>
+    );
+};
 
-                <!-- Badge 2: MotoGP (Clickable) -->
-                <div class="p-2 rounded-lg bg-secondary-lilac text-bg-dark shadow-md cursor-pointer hover:scale-[1.05] transition transform badge-vibe"
-                     onclick="showVibeDetail('Rider Favorit', 'Selalu dukung Marc Marquez (MM93). Gas pol! 🏍️💨')">
-                    🏍️ MOTOGP
-                </div>
 
-                <!-- Badge 3: Football (Clickable) -->
-                <div class="p-2 rounded-lg bg-gray-600 text-white shadow-md cursor-pointer hover:scale-[1.05] transition transform badge-vibe"
-                     onclick="showVibeDetail('Team Bola', 'Timnas Indonesia 🇮🇩 & Real Madrid. Hala Madrid! 👑')">
-                    ⚽ 
+// --- KOMPONEN: MODAL EDIT PROFIL ---
+
+const EditModal = ({ profile, onClose, onSave }) => {
+    const [formData, setFormData] = useState({
+        name: profile.name,
+        bio: profile.bio,
+        profilePicUrl: profile.profilePicUrl, 
+        spotifyUrl: profile.spotifyUrl,
+        kpopVibe: profile.vibes.kpop,
+        motogpVibe: profile.vibes.motogp,
+        footballVibe: profile.vibes.football,
+    });
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const newVibes = {
+            kpop: formData.kpopVibe,
+            motogp: formData.motogpVibe,
+            football: formData.footballVibe,
+        };
+        const updatedProfile = {
+            name: formData.name,
+            bio: formData.bio,
+            // ⬆️ Ini yang menyimpan URL foto profil utama
+            profilePicUrl: formData.profilePicUrl, 
+            spotifyUrl: formData.spotifyUrl,
+            vibes: newVibes
+        };
+        
+        await onSave(updatedProfile);
+        setIsSaving(false);
+        onClose();
+    };
+
+    const InputField = ({ label, name, value, placeholder, type = 'text', hint }) => (
+        <div className="mb-4">
+            <label className="block text-sm font-medium text-secondary-lilac mb-1">{label}</label>
+            <input
+                type={type}
+                name={name}
+                value={value}
+                onChange={handleChange}
+                placeholder={placeholder}
+                className="w-full px-3 py-2 bg-dark border border-primary-pink/50 rounded-lg text-gray-100 focus:ring-primary-pink focus:border-primary-pink outline-none"
+            />
+            {hint && <p className="text-xs text-gray-400 mt-1 italic">{hint}</p>}
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-card-dark rounded-xl shadow-2xl p-6 w-full max-w-lg border-2 border-primary-pink/50 max-h-[90vh] overflow-y-auto">
+                <h2 className="text-2xl font-bold text-primary-pink mb-4 border-b pb-2 border-secondary-lilac/30">Edit Profil Anda</h2>
+                
+                <InputField 
+                    label="Nama Lengkap" 
+                    name="name" 
+                    value={formData.name} 
+                    placeholder="Masukkan nama Anda" 
+                />
+                
+                <InputField 
+                    label="Bio Singkat" 
+                    name="bio" 
+                    value={formData.bio} 
+                    placeholder="Contoh: AI Addict | 05' | ENFP" 
+                />
+                
+                <InputField 
+                    label="URL Foto Profil (Ganti Foto Utama)" 
+                    name="profilePicUrl" 
+                    value={formData.profilePicUrl} 
+                    placeholder="https://link-ke-foto-anda.jpg"
+                    hint="Masukkan URL tautan langsung ke gambar (Foto ini HANYA tampil di bagian atas)."
+                />
+
+                <h3 className="text-lg font-semibold text-secondary-lilac mt-6 mb-3">Vibes Details</h3>
+                
+                <InputField 
+                    label="K-Pop Vibe" 
+                    name="kpopVibe" 
+                    value={formData.kpopVibe} 
+                    placeholder="List artis K-Pop favorit" 
+                />
+                <InputField 
+                    label="MotoGP Vibe" 
+                    name="motogpVibe" 
+                    value={formData.motogpVibe} 
+                    placeholder="Rider favorit Anda" 
+                />
+                <InputField 
+                    label="Football Vibe" 
+                    name="footballVibe" 
+                    value={formData.footballVibe} 
+                    placeholder="Timnas dan Klub favorit" 
+                />
+
+                <h3 className="text-lg font-semibold text-primary-pink mt-6 mb-3">Integrasi Spotify</h3>
+                <InputField 
+                    label="URL Spotify Track Penuh" 
+                    name="spotifyUrl" 
+                    value={formData.spotifyUrl} 
+                    placeholder="https://open.spotify.com/track/..." 
+                />
+
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 bg-gray-600 rounded-lg text-white font-semibold hover:bg-gray-500 transition"
+                        disabled={isSaving}
+                    >
+                        Batal
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        className={`px-4 py-2 rounded-lg font-semibold transition ${isSaving ? 'bg-secondary-lilac/50' : 'bg-secondary-lilac text-bg-dark hover:bg-secondary-lilac/80'}`}
+                        disabled={isSaving}
+                    >
+                        {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                    </button>
                 </div>
             </div>
-            <p class="mt-4 text-center text-sm text-gray-400">
-                Klik badge di atas untuk lihat detailnya ya!
-            </p>
         </div>
-        <!-- AKHIR BLOK CURRENT VIBE -->
+    );
+};
 
-        <!-- SECTION LINKS UTAMA -->
-        <section class="space-y-4">
-            
-            <a href="https://www.tiktok.com/@hiraiyizhuo?_r=1&_d=ej1hlhm8d7j6b3&sec_uid=MS4wLjABAAAAQ0Gxo4tD37GbCYl744yHdkFnpXZCOBdXJIkkvI0ot2P6Fs0uwaj25eLhmtU0ZGy8&share_author_id=6819986461502505986&sharer_language=id&source=h5_t&u_code=dc4hceid3jhhkl&timestamp=1759464666&user_id=6819986461502505986&sec_user_id=MS4wLjABAAAAQ0Gxo4tD37GbCYl744yHdkFnpXZCOBdXJIkkvI0ot2P6Fs0uwaj25eLhmtU0ZGy8&item_author_type=1&utm_source=copy&utm_campaign=client_share&utm_medium=android&share_iid=7556592524171003666&share_link_id=242be62f-87b3-406d-9bf8-440cda2eb5f5&share_app_id=1180&ugbiz_name=ACCOUNT&ug_btm=b8727%2Cb7360&social_share_type=5&enable_checksum=1"
-                target="_blank" class="btn-link block w-full bg-card-dark text-primary-pink border border-primary-pink p-4 rounded-xl text-center font-bold text-lg transition duration-300 hover:bg-primary-pink hover:text-bg-dark hover:scale-[1.03]">
-                <svg class="w-5 h-5 inline-block mr-2" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.5 5.5c0 .3-1.6 1.8-3.1 3.2-.3.3-.6.5-1.1.5-.6 0-1.1-.3-1.4-.8-.4-.7-.4-1.6 0-2.3.2-.3.4-.6.6-.9 1.5-2.2 2.4-5.3 1.9-8.4C19.1 0 16 0 16 0h-8c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h4.5c.3 0 .5.2.5.5s-.2.5-.5.5H8c-2.2 0-4-1.8-4-4V2c0-1.1.9-2 2-2h4v8.5c0 .3.2.5.5.5s.5-.2.5-.5V0h4.5c.3 0 .5.2.5.5s-.2.5-.5.5H16v2h1.5c1 0 1.8.8 1.8 1.8v3.5c0 1.1-.9 2-2 2H8c-.3 0-.5.2-.5.5s.2.5.5.5h12c1.1 0 2-.9 2-2V5.5z"/></svg>
-                Spill Video FYP gue
-            </a>
-            
-            <a href="https://www.instagram.com/razkabf"
-                target="_blank" class="btn-link block w-full bg-card-dark text-secondary-lilac border border-secondary-lilac p-4 rounded-xl text-center font-bold text-lg transition duration-300 hover:bg-secondary-lilac hover:text-bg-dark hover:scale-[1.03]">
-                <svg class="w-5 h-5 inline-block mr-2" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.77 1.624 4.975 4.977.07 1.266.082 1.646.082 4.85s-.012 3.584-.082 4.85c-.205 3.353-1.723 4.829-4.975 4.977-1.266.07-1.646.082-4.85.082s-3.584-.012-4.85-.082c-3.252-.148-4.77-1.624-4.975-4.977-.07-1.266-.082-1.646-.082-4.85s.012-3.584.082-4.85c.205-3.353 1.723-4.829 4.975-4.977 1.266-.07 1.646-.082 4.85-.082zm0-2.163c-3.267 0-3.655.013-4.921.074-4.243.194-6.027 1.96-6.223 6.223-.061 1.266-.073 1.65-.073 4.921s.012 3.655.073 4.921c.196 4.263 1.98 6.047 6.223 6.223 1.266.061 1.65.074 4.921.074s3.655-.013 4.921-.074c4.243-.196 6.027-1.98 6.223-6.223.061-1.266.073-1.65.073-4.921s-.012-3.655-.073-4.921c-.196-4.243-1.98-6.027-6.223-6.223-1.266-.061-1.65-.074-4.921-.074zm0 5.838c-3.4 0-6.162 2.762-6.162 6.162s2.762 6.162 6.162 6.162 6.162-2.762 6.162-6.162-2.762-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4s1.791-4 4-4 4 1.791 4 4-1.791 4-4 4zm6.495-9.673c-.791 0-1.432.641-1.432 1.432s.641 1.432 1.432 1.432 1.432-.641 1.432-1.432-.641-1.432-1.432-1.432z"/></svg>
-                Instagram gue
-            </a>
 
-            <a href="mailto:razkabintangfirdaus@gmail.com"
-                target="_blank" class="btn-link block w-full bg-card-dark text-primary-pink border border-primary-pink p-4 rounded-xl text-center font-bold text-lg transition duration-300 hover:bg-primary-pink hover:text-bg-dark hover:scale-[1.03]">
-                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26c.4.26.88.26 1.28 0L21 8m-17 4v7a2 2 0 002 2h12a2 2 0 002-2v-7"/>
-                </svg>
-                Kontak Serius (Bisnis)
-            </a>
-            
-            <a href="https://www.instagram.com/byrazka.jpg"
-                target="_blank" class="btn-link block w-full bg-card-dark text-secondary-lilac border border-secondary-lilac p-4 rounded-xl text-center font-bold text-lg transition duration-300 hover:bg-secondary-lilac hover:text-bg-dark hover:scale-[1.03]">
-                <svg class="w-5 h-5 inline-block mr-2" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.77 1.624 4.975 4.977.07 1.266.082 1.646.082 4.85s-.012 3.584-.082 4.85c-.205 3.353-1.723 4.829-4.975 4.977-1.266.07-1.646.082-4.85.082s-3.584-.012-4.85-.082c-3.252-.148-4.77-1.624-4.975-4.977-.07-1.266-.082-1.646-.082-4.85s.012-3.584.082-4.85c.205-3.353 1.723-4.829 4.975-4.977 1.266-.07 1.646-.082 4.85-.082zm0-2.163c-3.267 0-3.655.013-4.921.074-4.243.194-6.027 1.96-6.223 6.223-.061 1.266-.073 1.65-.073 4.921s.012 3.655.073 4.921c.196 4.263 1.98 6.047 6.223 6.223 1.266.061 1.65.074 4.921.074s3.655-.013 4.921-.074c4.243-.196 6.027-1.98 6.223-6.223.061-1.266.073-1.65.073-4.921s-.012-3.655-.073-4.921c-.196-4.243-1.98-6.027-6.223-6.223-1.266-.061-1.65-.074-4.921-.074zm0 5.838c-3.4 0-6.162 2.762-6.162 6.162s2.762 6.162 6.162 6.162 6.162-2.762 6.162-6.162-2.762-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4s1.791-4 4-4 4 1.791 4 4-1.791 4-4 4zm6.495-9.673c-.791 0-1.432.641-1.432 1.432s.641 1.432 1.432 1.432 1.432-.641 1.432-1.432-.641-1.432-1.432-1.432z"/></svg>
-                Instagram Second Account
-            </a>
+// --- KOMPONEN UTAMA: APP ---
 
-        </section>
-        
-        <!-- FOOTER -->
-        <footer class="text-center mt-10 text-gray-500 text-xs">
-            <p>&copy; 2025 Razka's Vibe. </p>
-        </footer>
+const App = () => {
+    StyleOverrides();
 
-    </div>
+    const [profile, setProfile] = useState(defaultProfile);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isIdolModalOpen, setIsIdolModalOpen] = useState(false); // State untuk Galeri Idola
+    const [firebaseReady, setFirebaseReady] = useState(false);
+    const [userId, setUserId] = useState(null);
+    const [db, setDb] = useState(null);
+    const [auth, setAuth] = useState(null);
+    const [error, setError] = useState(null);
 
-    <!-- JAVASCRIPT LOGIC (Toast and Sound Effects) -->
-    <script>
-        /**
-         * FUNCTION UNTUK MENAMPILKAN TOAST/MESSAGE BOX KETIKA BADGE VIBE DIKLIK.
-         * @param {string} title - Judul pesan toast.
-         * @param {string} message - Isi detail pesan toast.
-         */
-        function showVibeDetail(title, message) {
-            const toastContainer = document.getElementById('toast-container');
-            const toastMessage = document.getElementById('toast-message');
-            const sound = document.getElementById('click-sound');
-            
-            // 1. Putar sound effect
-            sound.currentTime = 0; 
-            sound.play().catch(e => console.log("Audio play prevented:", e));
 
-            // 2. Format pesan
-            toastMessage.innerHTML = `<p class="text-primary-pink font-bold">${title}</p><p class="mt-1 text-sm">${message}</p>`;
-
-            // 3. Tampilkan Toast (ubah opacity dan scale)
-            toastContainer.classList.remove('opacity-0', 'scale-90', 'pointer-events-none');
-            toastContainer.classList.add('opacity-100', 'scale-100');
-
-            // 4. Sembunyikan Toast setelah 4 detik
-            setTimeout(() => {
-                toastContainer.classList.remove('opacity-100', 'scale-100');
-                toastContainer.classList.add('opacity-0', 'scale-90', 'pointer-events-none');
-            }, 4000);
+    // 1. Inisialisasi Firebase & Otentikasi
+    useEffect(() => {
+        if (!firebaseConfig) {
+            console.error("Firebase config is missing.");
+            setError("Firebase config tidak ditemukan.");
+            setIsLoading(false);
+            return;
         }
 
-        /**
-         * Memicu sound effect saat tombol link utama diklik.
-         */
-        document.querySelectorAll('.btn-link').forEach(button => {
-            button.addEventListener('click', function() {
-                const sound = document.getElementById('click-sound');
-                sound.currentTime = 0; // Memastikan audio dimulai dari awal
-                sound.play().catch(e => console.log("Audio play prevented:", e));
-            });
+        try {
+            const app = initializeApp(firebaseConfig);
+            const firestore = getFirestore(app);
+            const authInstance = getAuth(app);
+            
+            setDb(firestore);
+            setAuth(authInstance);
+
+            const authenticate = async () => {
+                try {
+                    if (initialAuthToken) {
+                        const userCredential = await signInWithCustomToken(authInstance, initialAuthToken);
+                        setUserId(userCredential.user.uid);
+                    } else {
+                        const userCredential = await signInAnonymously(authInstance);
+                        setUserId(userCredential.user.uid);
+                    }
+                } catch (e) {
+                    console.error("Firebase Auth Error:", e);
+                    setError("Gagal otentikasi Firebase.");
+                    setUserId(authInstance.currentUser?.uid || crypto.randomUUID());
+                }
+                setFirebaseReady(true);
+            };
+
+            authenticate();
+        } catch (e) {
+            console.error("Firebase Initialization Error:", e);
+            setError("Gagal inisialisasi Firebase.");
+            setIsLoading(false);
+        }
+    }, []);
+
+    // 2. Fetch/Listen Data Profil
+    useEffect(() => {
+        if (!db || !userId) return;
+
+        // Path dokumen: /artifacts/{appId}/users/{userId}/profile/user_data
+        const profileDocRef = doc(db, `artifacts/${appId}/users/${userId}/profile`, 'user_data');
+        
+        const unsubscribe = onSnapshot(profileDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setProfile({
+                    ...defaultProfile, 
+                    ...data,
+                    vibes: { ...defaultProfile.vibes, ...data.vibes }
+                });
+            } else {
+                // Set dokumen default jika belum ada
+                setDoc(profileDocRef, defaultProfile).catch(e => console.error("Error setting default profile:", e));
+                setProfile(defaultProfile);
+            }
+            setIsLoading(false);
+        }, (e) => {
+            console.error("Firestore Listen Error:", e);
+            setError("Gagal mengambil data profil.");
+            setIsLoading(false);
         });
-    </script>
-</body>
-</html>
+
+        return () => unsubscribe();
+    }, [db, userId]);
+
+
+    // 3. Fungsi untuk Menyimpan Profil ke Firestore
+    const saveProfile = async (newProfile) => {
+        if (!db || !userId) {
+            setError("Koneksi database belum siap.");
+            return;
+        }
+
+        const profileDocRef = doc(db, `artifacts/${appId}/users/${userId}/profile`, 'user_data');
+        try {
+            await setDoc(profileDocRef, newProfile, { merge: true });
+        } catch (e) {
+            console.error("Error saving profile:", e);
+            setError("Gagal menyimpan perubahan. Coba lagi.");
+        }
+    };
+
+    // Memoized Spotify Embed URL
+    const spotifyEmbedUrl = useMemo(() => {
+        const trackId = getSpotifyTrackId(profile.spotifyUrl);
+        if (trackId) {
+            return `https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0`;
+        }
+        return '';
+    }, [profile.spotifyUrl]);
+
+    // Error dan Loading States
+    if (error) {
+        return (
+            <div className="text-center p-8 bg-card-dark rounded-xl mt-10 text-primary-pink border border-primary-pink">
+                <p className="font-bold text-xl mb-2">Error!</p>
+                <p>{error}</p>
+                <p className="text-sm mt-4 text-gray-400">Silakan refresh halaman atau hubungi dukungan.</p>
+            </div>
+        );
+    }
+    
+    if (isLoading || !firebaseReady) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-pink"></div>
+                <p className="ml-4 text-secondary-lilac">Memuat data...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-4 w-full max-w-md mx-auto min-h-screen">
+            
+            {/* Informasi Auth untuk Debugging/Identifikasi */}
+            <p className="text-xs text-center text-gray-500 mb-2">
+                User ID (untuk edit): <span className="text-secondary-lilac font-mono break-all">{userId || 'N/A'}</span>
+            </p>
+
+            {/* HEADER DAN AVATAR */}
+            <div className="text-center my-6 relative">
+                
+                {/* Tombol Edit Profil */}
+                <button 
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="absolute top-0 right-0 p-2 bg-card-dark text-primary-pink rounded-full border border-primary-pink/50 hover:bg-primary-pink hover:text-bg-dark transition shadow-lg"
+                    title="Edit Profil"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                </button>
+
+                {/* Avatar (Foto Profil Utama - 1 Foto Kamu) */}
+                <img 
+                    src={profile.profilePicUrl} 
+                    alt="Profile Avatar" 
+                    onClick={() => setIsIdolModalOpen(true)}
+                    className="w-32 h-32 rounded-full mx-auto mb-3 border-4 border-secondary-lilac shadow-xl object-cover cursor-pointer transition transform hover:scale-105"
+                    onError={(e) => { e.target.onerror = null; e.target.src = defaultProfile.profilePicUrl; }}
+                />
+
+                <h1 className="text-4xl font-extrabold text-primary-pink tracking-tight">
+                    {profile.name}
+                </h1>
+                <p className="text-md text-gray-400 mt-1 italic">{profile.bio}</p>
+            </div>
+            
+            <div className="h-0.5 bg-primary-pink/50 rounded-full my-6"></div>
+
+            {/* SECTION: CURRENT SONG (SPOTIFY) */}
+            {spotifyEmbedUrl && (
+                <section className="mb-8 bg-card-dark p-5 rounded-2xl shadow-2xl border-2 border-secondary-lilac/50">
+                    <h2 className="text-2xl font-bold mb-4 flex items-center justify-center text-secondary-lilac">
+                        <svg className="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.578 17.56c-.244.398-.753.535-1.15.293-2.617-1.61-5.962-2.02-9.923-1.17-.456.095-.91-.186-1.005-.642-.095-.456.186-.91.642-1.005 4.363-.91 8.163-.44 11.23 1.488.398.244.535.753.293 1.15zM12 21.05c-5.006 0-9.05-4.044-9.05-9.05s4.044-9.05 9.05-9.05 9.05 4.044 9.05 9.05-4.044 9.05-9.05 9.05zm-.15-1.5c.08-.184.148-.37.214-.56-.066-.19-.134-.376-.214-.56zm3.33-3.66c-.198.32-.61.428-.93.23-2.18-1.34-4.966-1.69-8.31-1.045-.37.076-.73-.13-.806-.5s.13-.73.5-.806c3.67-.754 6.78-1.74 9.387 1.07.28.165.37.545.163.855z"/></svg>
+                        CURRENTLY LISTENING 🎧
+                    </h2>
+                    <div className="rounded-xl overflow-hidden shadow-xl">
+                        <iframe 
+                            src={spotifyEmbedUrl} 
+                            width="100%" 
+                            height="152" 
+                            frameBorder="0" 
+                            allowFullScreen="" 
+                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                            loading="lazy"
+                            title="Spotify Embed Player"
+                        ></iframe>
+                    </div>
+                </section>
+            )}
+
+
+            {/* SECTION: VIBES - Klik untuk buka Galeri Idola */}
+            <section className="mb-8 bg-card-dark p-5 rounded-2xl shadow-2xl border-2 border-primary-pink/50">
+                <h2 className="text-2xl font-bold mb-4 text-primary-pink text-center">
+                    V I B E S
+                </h2>
+                
+                {/* Semua item vibe di-klik untuk membuka Modal Idola */}
+                <VibeItem 
+                    emoji="🩷" 
+                    title="K-Pop Squad" 
+                    content={profile.vibes.kpop} 
+                    color="primary-pink" 
+                    onClick={() => setIsIdolModalOpen(true)}
+                />
+                <VibeItem 
+                    emoji="🏍️" 
+                    title="Rider Favorit" 
+                    content={profile.vibes.motogp} 
+                    color="secondary-lilac" 
+                    onClick={() => setIsIdolModalOpen(true)}
+                />
+                <VibeItem 
+                    emoji="⚽" 
+                    title="Team Bola" 
+                    content={profile.vibes.football} 
+                    color="primary-pink" 
+                    onClick={() => setIsIdolModalOpen(true)}
+                />
+                <p className="text-xs text-center text-gray-500 mt-4 italic">
+                    *Klik kotak VIBES untuk melihat galeri 6 foto idola!
+                </p>
+            </section>
+            
+            <div className="h-0.5 bg-secondary-lilac/50 rounded-full my-6"></div>
+
+            {/* SECTION LINKS UTAMA */}
+            <section className="space-y-4 mb-8">
+                
+                {/* 1. Instagram Main - Ikon Instagram yang Lebih Bersih */}
+                <PrimaryButton 
+                    colorClass="border-primary-pink text-primary-pink" 
+                    hoverClass="hover:bg-primary-pink hover:text-bg-dark"
+                    icon={(
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                            <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                        </svg>
+                    )}
+                    onClick={() => window.open('https://www.instagram.com/razkabf', '_blank')}
+                >
+                    Instagram Utama (@razkabf)
+                </PrimaryButton>
+
+                {/* 2. Instagram Second - Ikon Instagram dengan Bintang kecil di sudut (untuk membedakan) */}
+                <PrimaryButton 
+                    colorClass="border-secondary-lilac text-secondary-lilac" 
+                    hoverClass="hover:bg-secondary-lilac hover:text-bg-dark"
+                    icon={(
+                        <div className="relative w-6 h-6">
+                            {/* Ikon Instagram utama */}
+                            <svg className="absolute inset-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                            </svg>
+                            {/* Bintang kecil untuk membedakan akun kedua */}
+                            <svg className="absolute bottom-0 right-0 w-3 h-3 text-primary-pink fill-primary-pink" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
+                            </svg>
+                        </div>
+                    )}
+                    onClick={() => window.open('https://www.instagram.com/second_acc_kamu', '_blank')}
+                >
+                    Instagram Kedua (Second Acc)
+                </PrimaryButton>
+
+                {/* 3. TikTok - Ikon TikTok yang Diperbarui */}
+                <PrimaryButton 
+                    colorClass="border-primary-pink text-primary-pink" 
+                    hoverClass="hover:bg-primary-pink hover:text-bg-dark"
+                    icon={(
+                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12.5 7.5A4.5 4.5 0 0 1 17 12c0 2.2-1.8 4-4 4-1.6 0-3-.9-3.7-2.2v-2.1c.3.1.6.2.9.2 1.4 0 2.5-1.1 2.5-2.5 0-1.4-1.1-2.5-2.5-2.5-1.4 0-2.5 1.1-2.5 2.5v7.6c0 2.6-2.1 4.7-4.7 4.7-2.6 0-4.7-2.1-4.7-4.7s2.1-4.7 4.7-4.7c.8 0 1.5.2 2.1.6V7.5h.3zM18.5 7.5h.1v7.1c0 2.6-2.1 4.7-4.7 4.7-2.6 0-4.7-2.1-4.7-4.7s2.1-4.7 4.7-4.7c1.4 0 2.6.6 3.4 1.5z"/>
+                        </svg>
+                    )}
+                    onClick={() => window.open('https://www.tiktok.com/@tiktok_kamu', '_blank')}
+                >
+                    TikTok
+                </PrimaryButton>
+
+                {/* 4. Email - Ikon Amplop yang Sudah Bersih (Lucide) */}
+                <PrimaryButton 
+                    colorClass="border-secondary-lilac text-secondary-lilac" 
+                    hoverClass="hover:bg-secondary-lilac hover:text-bg-dark"
+                    icon={(
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22 6l-10 7L2 6"/>
+                        </svg>
+                    )}
+                    onClick={() => window.open('mailto:razka.bintang@mail.com', '_blank')}
+                >
+                    Email
+                </PrimaryButton>
+            </section>
+
+            {/* Modals */}
+            {isEditModalOpen && <EditModal profile={profile} onClose={() => setIsEditModalOpen(false)} onSave={saveProfile} />}
+            {isIdolModalOpen && <IdolModal onClose={() => setIsIdolModalOpen(false)} />}
+        </div>
+    );
+};
+
+export default App;
 
